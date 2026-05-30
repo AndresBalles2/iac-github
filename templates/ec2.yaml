@@ -3,12 +3,45 @@ Description: EC2 creada desde GitHub Actions
 
 Resources:
 
+  MySecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Permitir acceso HTTP 8080
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          CidrIp: 0.0.0.0/0
+
   MyEC2:
     Type: AWS::EC2::Instance
     Properties:
       AvailabilityZone: us-east-1a
       ImageId: ami-0cca150d127c2216f
       InstanceType: t3.micro
+
+      SecurityGroupIds:
+        - !Ref MySecurityGroup
+
+      UserData:
+        Fn::Base64: |
+          #!/bin/bash
+          yum update -y
+          yum install -y python3
+
+          cat > /home/ec2-user/app.py << EOF
+          from http.server import HTTPServer, BaseHTTPRequestHandler
+
+          class Handler(BaseHTTPRequestHandler):
+              def do_GET(self):
+                  self.send_response(200)
+                  self.end_headers()
+                  self.wfile.write(b"Hola desde EC2 en puerto 8080")
+
+          HTTPServer(("0.0.0.0", 8080), Handler).serve_forever()
+          EOF
+
+          nohup python3 /home/ec2-user/app.py &
 
       Tags:
         - Key: Name
@@ -18,3 +51,6 @@ Outputs:
 
   InstanceId:
     Value: !Ref MyEC2
+
+  PublicIP:
+    Value: !GetAtt MyEC2.PublicIp
