@@ -3,10 +3,10 @@ Description: EC2 creada desde GitHub Actions
 
 Resources:
 
-  MySecurityGroup:
+  WebSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Permitir acceso HTTP 8080
+      GroupDescription: Permitir HTTP
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 80
@@ -21,34 +21,22 @@ Resources:
       InstanceType: t3.micro
 
       SecurityGroupIds:
-        - !Ref MySecurityGroup
+        - !Ref WebSecurityGroup
 
       UserData:
-        Fn::Base64: |
+        Fn::Base64: !Sub |
           #!/bin/bash
-          yum update -y
-          yum install -y python3
-
-          cat > /home/ec2-user/app.py << EOF
-          from http.server import HTTPServer, BaseHTTPRequestHandler
-
-          class Handler(BaseHTTPRequestHandler):
-              def do_GET(self):
-                  self.send_response(200)
-                  self.end_headers()
-                  self.wfile.write(b"Hola desde EC2 en puerto 8080")
-
-          HTTPServer(("0.0.0.0", 8080), Handler).serve_forever()
-          EOF
-
-          nohup python3 /home/ec2-user/app.py &
+          dnf update -y
+          dnf install -y httpd
+          systemctl enable httpd
+          systemctl start httpd
+          echo "<h1>Hola desde CloudFormation y GitHub Actions</h1>" > /var/www/html/index.html
 
       Tags:
         - Key: Name
           Value: EC2-GitHubActions
 
 Outputs:
-
   InstanceId:
     Value: !Ref MyEC2
 
